@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BabyLog</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', path='/icon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', path='/icon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260621-journal-calendar-2">
+  </head>
+  <body>
+    {% macro metric_tabs(group, active_type, query_param) %}
+      <nav class="metric-tabs" aria-label="{{ group|capitalize }} categories" role="tablist">
+        <button class="metric-tab-button {{ 'active' if active_type == 'growth' else '' }}" type="button" role="tab" aria-selected="{{ 'true' if active_type == 'growth' else 'false' }}" data-subtab-target="{{ group }}-growth" data-subtab-group="{{ group }}" data-subtab-param="{{ query_param }}">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="m7 16 4-5 4 3 5-7"></path></svg>
+          <span>Growth</span>
+        </button>
+        <button class="metric-tab-button {{ 'active' if active_type == 'milk' else '' }}" type="button" role="tab" aria-selected="{{ 'true' if active_type == 'milk' else 'false' }}" data-subtab-target="{{ group }}-milk" data-subtab-group="{{ group }}" data-subtab-param="{{ query_param }}">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 2h8M9 2v4l-3 4v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10l-3-4V2"></path><path d="M6 12h12M9 17h6"></path></svg>
+          <span>Milk</span>
+        </button>
+        <button class="metric-tab-button {{ 'active' if active_type == 'poop' else '' }}" type="button" role="tab" aria-selected="{{ 'true' if active_type == 'poop' else 'false' }}" data-subtab-target="{{ group }}-poop" data-subtab-group="{{ group }}" data-subtab-param="{{ query_param }}">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 19h9a4 4 0 0 0 1-7.9A5 5 0 0 0 9 8a3.5 3.5 0 0 0-1 6.9A2 2 0 0 0 8 19Z"></path><path d="M9 8c0-2 1-3 3-4"></path></svg>
+          <span>Poop</span>
+        </button>
+      </nav>
+    {% endmacro %}
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Growth tracker</p>
+          <h1>BabyLog</h1>
+          {% if baby_profile %}
+            <p class="baby-name">{{ baby_profile.name }}</p>
+          {% endif %}
+        </div>
+        <a class="export-link" href="/export.csv">CSV</a>
+      </header>
+
+      <nav class="tabs" aria-label="Main views">
+        <button class="tab-button {{ 'active' if active_tab == 'entry' else '' }}" type="button" data-tab-target="entry-panel" aria-label="Entry">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>
+          <span>Entry</span>
+        </button>
+        <button class="tab-button {{ 'active' if active_tab == 'dashboard' else '' }}" type="button" data-tab-target="dashboard-panel" aria-label="Dashboard">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="m7 16 4-5 4 3 5-7"></path></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="tab-button {{ 'active' if active_tab == 'journal' else '' }}" type="button" data-tab-target="journal-panel" aria-label="Journal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"></path><path d="M8 7h8M8 11h6"></path></svg>
+          <span>Journal</span>
+        </button>
+        <button class="tab-button {{ 'active' if active_tab == 'history' else '' }}" type="button" data-tab-target="history-panel" aria-label="History">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5M12 7v5l3 2"></path></svg>
+          <span>History</span>
+        </button>
+        <button class="tab-button {{ 'active' if active_tab == 'settings' else '' }}" type="button" data-tab-target="settings-panel" aria-label="Settings">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"></path></svg>
+          <span>Settings</span>
+        </button>
+      </nav>
+
+      <section class="panel tab-panel {{ 'active' if active_tab == 'entry' else '' }}" id="entry-panel" {% if active_tab != 'entry' %}hidden{% endif %}>
+        <h2>Quick entry</h2>
+        {% if error %}
+          <p class="error-message">{{ error }}</p>
+        {% endif %}
+
+        {{ metric_tabs('entry', active_entry, 'entry_type') }}
+
+        <div class="metric-subpanel" id="entry-growth" data-subtab-panel="entry" role="tabpanel" {% if active_entry != 'growth' %}hidden{% endif %}>
+          <form action="/measurements" method="post" enctype="multipart/form-data">
+          <div class="mode-switch" role="radiogroup" aria-label="Entry mode">
+            <label>
+              <input type="radio" name="entry_mode" value="single" checked>
+              <span>Single</span>
+            </label>
+            <label>
+              <input type="radio" name="entry_mode" value="full">
+              <span>Full</span>
+            </label>
+            <label>
+              <input type="radio" name="entry_mode" value="photo">
+              <span>Photo</span>
+            </label>
+          </div>
+
+          <label class="date-field">
+            Date and time
+            <input type="datetime-local" name="measured_at" value="{{ now_local }}" required>
+          </label>
+
+          <div class="single-entry-fields">
+            <label>
+              Metric
+              <select name="metric_type">
+                <option value="weight_kg">Weight</option>
+                <option value="height_cm">Height</option>
+                <option value="head_circumference_cm">Head circumference</option>
+              </select>
+            </label>
+            <label>
+              Value
+              <input type="number" name="metric_value" step="0.01" min="0" inputmode="decimal" placeholder="Enter value">
+            </label>
+          </div>
+
+          <div class="field-grid full-entry-fields" hidden>
+            <label>
+              Weight
+              <input type="number" name="weight_kg" step="0.01" min="0" inputmode="decimal" placeholder="kg">
+            </label>
+            <label>
+              Height
+              <input type="number" name="height_cm" step="0.1" min="0" inputmode="decimal" placeholder="cm">
+            </label>
+            <label>
+              Head circumference
+              <input type="number" name="head_circumference_cm" step="0.1" min="0" inputmode="decimal" placeholder="cm">
+            </label>
+          </div>
+
+          <div class="photo-entry-fields" hidden>
+            <label>
+              Baby photo
+              <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif">
+              <img class="photo-preview" alt="Selected baby photo preview" data-photo-preview hidden>
+            </label>
+          </div>
+
+          <label>
+            Note
+            <textarea name="note" rows="3" placeholder="Optional note"></textarea>
+          </label>
+
+          <button type="submit">Save</button>
+          </form>
+        </div>
+
+        <section class="metric-subpanel care-entry-block" id="entry-milk" data-subtab-panel="entry" role="tabpanel" {% if active_entry != 'milk' %}hidden{% endif %}>
+            <div class="section-heading">
+              <h2>Milk</h2>
+              <span>{{ care_charts[0].today_total|round(0) }} ml today</span>
+            </div>
+            <form action="/milk" method="post">
+              <label class="date-field">
+                Date and time
+                <input type="datetime-local" name="fed_at" value="{{ now_local }}" required>
+              </label>
+              <label>
+                Amount
+                <input type="number" name="milk_ml" step="1" min="1" inputmode="decimal" placeholder="ml" required>
+              </label>
+              <label>
+                Note
+                <textarea name="note" rows="2" placeholder="Optional note"></textarea>
+              </label>
+              <button type="submit">Save milk</button>
+            </form>
+        </section>
+
+        <section class="metric-subpanel care-entry-block" id="entry-poop" data-subtab-panel="entry" role="tabpanel" {% if active_entry != 'poop' %}hidden{% endif %}>
+            <div class="section-heading">
+              <h2>Poop</h2>
+              <span>{{ care_charts[1].today_total }} today</span>
+            </div>
+            <form action="/poop" method="post">
+              <label class="date-field">
+                Date
+                <input type="date" name="pooped_on" value="{{ today }}" required>
+              </label>
+              <label>
+                Count
+                <input type="number" name="count" min="0" step="1" inputmode="numeric" value="1" required>
+              </label>
+              <label>
+                Note
+                <textarea name="note" rows="2" placeholder="Optional note"></textarea>
+              </label>
+              <button type="submit">Save poop</button>
+            </form>
+        </section>
+      </section>
+
+      <section class="tab-panel {{ 'active' if active_tab == 'dashboard' else '' }}" id="dashboard-panel" {% if active_tab != 'dashboard' %}hidden{% endif %}>
+        {{ metric_tabs('dashboard', active_dashboard, 'dashboard_type') }}
+
+        <div class="metric-subpanel" id="dashboard-growth" data-subtab-panel="dashboard" role="tabpanel" {% if active_dashboard != 'growth' %}hidden{% endif %}>
+          <section class="dashboard-grid" aria-label="Growth dashboard">
+          {% for chart in growth_charts %}
+            <article class="chart-card">
+              <div class="chart-heading">
+                <div>
+                  <h2>{{ chart.label }}</h2>
+                  <p>{{ chart.points|length }} records</p>
+                </div>
+                <div class="chart-latest">
+                  <strong>{{ chart.latest|round(chart.decimals) if chart.latest is not none else "-" }}</strong>
+                  <span>{{ chart.unit }}</span>
+                </div>
+              </div>
+
+              {% if chart.change is not none %}
+                <p class="chart-change">
+                  Last change:
+                  <strong>{{ "+" if chart.change > 0 else "" }}{{ chart.change|round(chart.decimals) }} {{ chart.unit }}</strong>
+                </p>
+              {% endif %}
+
+              {% if chart.reference_lines %}
+                <div class="chart-legend" aria-label="Chart legend">
+                  <span><i class="legend-dot baby-dot"></i>Baby</span>
+                  <span><i class="legend-line who-line"></i>WHO P3/P50/P97</span>
+                </div>
+              {% elif not baby_profile or not baby_profile.born_at or not baby_profile.sex %}
+                <p class="chart-help">Add born date/time and sex in Settings to show WHO standards.</p>
+              {% endif %}
+
+              {% if chart.points or chart.reference_lines %}
+                <div class="growth-chart" data-chart-key="{{ chart.key }}" role="img" aria-label="{{ chart.label }} growth chart"></div>
+              {% else %}
+                <p class="empty-state">No {{ chart.label|lower }} data yet.</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+          </section>
+        </div>
+
+        {% for chart in care_charts %}
+          {% set care_type = 'milk' if chart.key == 'milk_ml' else 'poop' %}
+          <div class="metric-subpanel" id="dashboard-{{ care_type }}" data-subtab-panel="dashboard" role="tabpanel" {% if active_dashboard != care_type %}hidden{% endif %}>
+            <section class="dashboard-grid" aria-label="{{ chart.label }} dashboard">
+            <article class="chart-card">
+              <div class="chart-heading">
+                <div>
+                  <h2>{{ chart.label }}</h2>
+                  <p>{{ chart.today_total|round(chart.decimals) }} {{ chart.unit }} today</p>
+                </div>
+                {% if chart.scales|length > 1 %}
+                  <label class="compact-select">
+                    Scale
+                    <select data-care-scale="{{ chart.key }}">
+                      {% for scale_key, scale in chart.scales.items() %}
+                        <option value="{{ scale_key }}" {{ 'selected' if scale_key == chart.default_scale else '' }}>{{ scale.label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                {% endif %}
+              </div>
+
+              {% if chart.scales.daily.points %}
+                <div class="care-chart" data-care-key="{{ chart.key }}" role="img" aria-label="{{ chart.label }} chart"></div>
+              {% else %}
+                <p class="empty-state">No {{ chart.label|lower }} data yet.</p>
+              {% endif %}
+            </article>
+            </section>
+          </div>
+        {% endfor %}
+      </section>
+
+      <section class="tab-panel {{ 'active' if active_tab == 'journal' else '' }}" id="journal-panel" {% if active_tab != 'journal' %}hidden{% endif %}>
+        <div class="section-heading journal-heading">
+          <h2>Journal</h2>
+          <span data-journal-count>{{ journal_days|length }} {{ 'day' if journal_days|length == 1 else 'days' }}</span>
+        </div>
+
+        <div class="journal-layout">
+          <aside class="journal-calendar" aria-label="Journal calendar">
+            <header class="journal-calendar-header">
+              <strong>Calendar</strong>
+              <button class="journal-calendar-toggle" type="button" aria-label="Hide calendar" aria-expanded="true" title="Hide calendar">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"></path></svg>
+              </button>
+            </header>
+            <div class="journal-calendar-body">
+              <div class="journal-month-controls">
+                <button type="button" data-calendar-previous aria-label="Previous month" title="Previous month">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+                </button>
+                <strong data-calendar-title></strong>
+                <button type="button" data-calendar-next aria-label="Next month" title="Next month">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
+                </button>
+              </div>
+              <div class="journal-calendar-weekdays" aria-hidden="true">
+                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+              </div>
+              <div class="journal-calendar-grid" data-calendar-grid></div>
+              <a class="journal-latest-link" href="/?tab=journal">Latest</a>
+            </div>
+          </aside>
+
+          <div class="journal-stream">
+          {% if journal_days %}
+            <div class="journal-feed" id="journal-feed">
+              {% include "journal_days.html" %}
+            </div>
+            {% if journal_has_more %}
+              <div class="journal-sentinel" data-journal-before="{{ journal_next_before }}" aria-live="polite">
+                <span class="journal-spinner" aria-hidden="true"></span>
+                <span>Loading older days</span>
+              </div>
+            {% endif %}
+          {% else %}
+            <p class="empty-state">No journal entries yet.</p>
+          {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel {{ 'active' if active_tab == 'history' else '' }}" id="history-panel" {% if active_tab != 'history' %}hidden{% endif %}>
+        {{ metric_tabs('history', active_history, 'history_type') }}
+        {% if history_error %}
+          <p class="error-message">{{ history_error }}</p>
+        {% endif %}
+
+        <div class="metric-subpanel" id="history-growth" data-subtab-panel="history" role="tabpanel" {% if active_history != 'growth' %}hidden{% endif %}>
+          <section class="summary-grid" aria-label="Growth summary">
+          <article class="summary-card">
+            <span>Latest weight</span>
+            <strong>{{ "%.2f"|format(summary.latest_weight) if summary.latest_weight is not none else "-" }}</strong>
+            <small>kg</small>
+          </article>
+          <article class="summary-card">
+            <span>Latest height</span>
+            <strong>{{ "%.1f"|format(summary.latest_height) if summary.latest_height is not none else "-" }}</strong>
+            <small>cm</small>
+          </article>
+          <article class="summary-card">
+            <span>Latest head</span>
+            <strong>{{ "%.1f"|format(summary.latest_head) if summary.latest_head is not none else "-" }}</strong>
+            <small>cm</small>
+          </article>
+          <article class="summary-card">
+            <span>Total records</span>
+            <strong>{{ summary.total_records }}</strong>
+            <small>saved</small>
+          </article>
+          </section>
+
+          <section class="records-section">
+        <div class="section-heading">
+          <h2>Latest records</h2>
+          <span>{{ measurements|length }} shown</span>
+        </div>
+
+        {% if measurements %}
+          <div class="records-list">
+            {% for measurement in measurements %}
+              <article class="record-card">
+                <div class="record-header">
+                  <div class="record-date">{{ measurement.measured_at.replace("T", " ") }}</div>
+                  <div class="record-actions">
+                    <button class="record-action-button" type="button" data-edit-target="edit-growth-{{ measurement.id }}" aria-expanded="false" aria-label="Edit growth record" title="Edit">
+                      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"></path></svg>
+                    </button>
+                    <form class="delete-form" action="/measurements/{{ measurement.id }}/delete" method="post" data-confirm-delete="growth record">
+                      <input type="hidden" name="history_limit" value="{{ growth_limit }}">
+                      <button class="record-action-button danger" type="submit" aria-label="Delete growth record" title="Delete">
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"></path></svg>
+                      </button>
+                    </form>
+                  </div>
+                </div>
+                {% if measurement.photo_filename %}
+                  <a class="record-photo-link" href="{{ url_for('static', path='/uploads/' ~ measurement.photo_filename) }}" target="_blank" rel="noopener" aria-label="Open baby photo">
+                    <img class="record-photo" src="{{ url_for('static', path='/uploads/' ~ measurement.photo_filename) }}" alt="Baby growth photo from {{ measurement.measured_at.replace('T', ' ') }}" loading="lazy">
+                  </a>
+                {% endif %}
+                {% if measurement.weight_kg is not none or measurement.height_cm is not none or measurement.head_circumference_cm is not none %}
+                <dl>
+                  <div>
+                    <dt>Weight</dt>
+                    <dd>{{ "%.2f kg"|format(measurement.weight_kg) if measurement.weight_kg is not none else "-" }}</dd>
+                  </div>
+                  <div>
+                    <dt>Height</dt>
+                    <dd>{{ "%.1f cm"|format(measurement.height_cm) if measurement.height_cm is not none else "-" }}</dd>
+                  </div>
+                  <div>
+                    <dt>Head</dt>
+                    <dd>{{ "%.1f cm"|format(measurement.head_circumference_cm) if measurement.head_circumference_cm is not none else "-" }}</dd>
+                  </div>
+                </dl>
+                {% endif %}
+                {% if measurement.note %}
+                  <p class="record-note">{{ measurement.note }}</p>
+                {% endif %}
+                <form class="record-edit-form" id="edit-growth-{{ measurement.id }}" action="/measurements/{{ measurement.id }}/edit" method="post" enctype="multipart/form-data" hidden>
+                  <input type="hidden" name="history_limit" value="{{ growth_limit }}">
+                  <label class="date-field">Date and time<input type="datetime-local" name="measured_at" value="{{ measurement.measured_at[:16] }}" required></label>
+                  <div class="field-grid">
+                    <label>Weight<input type="number" name="weight_kg" step="0.01" min="0" inputmode="decimal" value="{{ measurement.weight_kg if measurement.weight_kg is not none else '' }}" placeholder="kg"></label>
+                    <label>Height<input type="number" name="height_cm" step="0.1" min="0" inputmode="decimal" value="{{ measurement.height_cm if measurement.height_cm is not none else '' }}" placeholder="cm"></label>
+                    <label>Head circumference<input type="number" name="head_circumference_cm" step="0.1" min="0" inputmode="decimal" value="{{ measurement.head_circumference_cm if measurement.head_circumference_cm is not none else '' }}" placeholder="cm"></label>
+                  </div>
+                  <label>Note<textarea name="note" rows="2" placeholder="Optional note">{{ measurement.note or '' }}</textarea></label>
+                  <label>{{ 'Replace photo' if measurement.photo_filename else 'Add photo' }}<input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"></label>
+                  {% if measurement.photo_filename %}
+                    <label class="checkbox-field"><input type="checkbox" name="remove_photo" value="true"><span>Remove current photo</span></label>
+                  {% endif %}
+                  <div class="edit-form-actions">
+                    <button class="secondary-button" type="button" data-cancel-edit>Cancel</button>
+                    <button type="submit">Save changes</button>
+                  </div>
+                </form>
+              </article>
+            {% endfor %}
+          </div>
+          {% if growth_has_more %}
+            <a class="load-more-link" href="/?tab=history&amp;history_type=growth&amp;growth_limit={{ growth_limit + 10 }}&amp;milk_limit={{ milk_limit }}&amp;poop_limit={{ poop_limit }}">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 7 5 5 5-5M7 13l5 5 5-5"></path></svg>
+              <span>Load older records</span>
+            </a>
+          {% endif %}
+        {% else %}
+          <p class="empty-state">No measurements yet.</p>
+        {% endif %}
+          </section>
+        </div>
+
+        <section class="metric-subpanel records-section" id="history-milk" data-subtab-panel="history" role="tabpanel" {% if active_history != 'milk' %}hidden{% endif %}>
+          <div class="section-heading">
+            <h2>Milk records</h2>
+            <span>{{ milk_logs|length }} shown</span>
+          </div>
+
+          {% if milk_logs %}
+            <div class="records-list">
+              {% for milk in milk_logs %}
+                <article class="record-card">
+                  <div class="record-header">
+                    <div class="record-date">{{ milk.fed_at.replace("T", " ") }}</div>
+                    <div class="record-actions">
+                      <button class="record-action-button" type="button" data-edit-target="edit-milk-{{ milk.id }}" aria-expanded="false" aria-label="Edit milk record" title="Edit">
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"></path></svg>
+                      </button>
+                      <form class="delete-form" action="/milk/{{ milk.id }}/delete" method="post" data-confirm-delete="milk record">
+                        <input type="hidden" name="history_limit" value="{{ milk_limit }}">
+                        <button class="record-action-button danger" type="submit" aria-label="Delete milk record" title="Delete">
+                          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"></path></svg>
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Milk</dt>
+                      <dd>{{ milk.milk_ml|round(0) }} ml</dd>
+                    </div>
+                  </dl>
+                  {% if milk.note %}
+                    <p class="record-note">{{ milk.note }}</p>
+                  {% endif %}
+                  <form class="record-edit-form" id="edit-milk-{{ milk.id }}" action="/milk/{{ milk.id }}/edit" method="post" hidden>
+                    <input type="hidden" name="history_limit" value="{{ milk_limit }}">
+                    <label class="date-field">Date and time<input type="datetime-local" name="fed_at" value="{{ milk.fed_at[:16] }}" required></label>
+                    <label>Amount<input type="number" name="milk_ml" step="1" min="1" inputmode="decimal" value="{{ milk.milk_ml }}" required></label>
+                    <label>Note<textarea name="note" rows="2" placeholder="Optional note">{{ milk.note or '' }}</textarea></label>
+                    <div class="edit-form-actions">
+                      <button class="secondary-button" type="button" data-cancel-edit>Cancel</button>
+                      <button type="submit">Save changes</button>
+                    </div>
+                  </form>
+                </article>
+              {% endfor %}
+            </div>
+            {% if milk_has_more %}
+              <a class="load-more-link" href="/?tab=history&amp;history_type=milk&amp;growth_limit={{ growth_limit }}&amp;milk_limit={{ milk_limit + 10 }}&amp;poop_limit={{ poop_limit }}">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 7 5 5 5-5M7 13l5 5 5-5"></path></svg>
+                <span>Load older records</span>
+              </a>
+            {% endif %}
+          {% else %}
+            <p class="empty-state">No milk records yet.</p>
+          {% endif %}
+        </section>
+
+        <section class="metric-subpanel records-section" id="history-poop" data-subtab-panel="history" role="tabpanel" {% if active_history != 'poop' %}hidden{% endif %}>
+          <div class="section-heading">
+            <h2>Poop records</h2>
+            <span>{{ poop_logs|length }} shown</span>
+          </div>
+
+          {% if poop_logs %}
+            <div class="records-list">
+              {% for poop in poop_logs %}
+                <article class="record-card">
+                  <div class="record-header">
+                    <div class="record-date">{{ poop.pooped_on }}</div>
+                    <div class="record-actions">
+                      <button class="record-action-button" type="button" data-edit-target="edit-poop-{{ poop.id }}" aria-expanded="false" aria-label="Edit poop record" title="Edit">
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"></path></svg>
+                      </button>
+                      <form class="delete-form" action="/poop/{{ poop.id }}/delete" method="post" data-confirm-delete="poop record">
+                        <input type="hidden" name="history_limit" value="{{ poop_limit }}">
+                        <button class="record-action-button danger" type="submit" aria-label="Delete poop record" title="Delete">
+                          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"></path></svg>
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Poop</dt>
+                      <dd>{{ poop.count }} times</dd>
+                    </div>
+                  </dl>
+                  {% if poop.note %}
+                    <p class="record-note">{{ poop.note }}</p>
+                  {% endif %}
+                  <form class="record-edit-form" id="edit-poop-{{ poop.id }}" action="/poop/{{ poop.id }}/edit" method="post" hidden>
+                    <input type="hidden" name="history_limit" value="{{ poop_limit }}">
+                    <label class="date-field">Date<input type="date" name="pooped_on" value="{{ poop.pooped_on }}" required></label>
+                    <label>Count<input type="number" name="count" min="0" step="1" inputmode="numeric" value="{{ poop.count }}" required></label>
+                    <label>Note<textarea name="note" rows="2" placeholder="Optional note">{{ poop.note or '' }}</textarea></label>
+                    <div class="edit-form-actions">
+                      <button class="secondary-button" type="button" data-cancel-edit>Cancel</button>
+                      <button type="submit">Save changes</button>
+                    </div>
+                  </form>
+                </article>
+              {% endfor %}
+            </div>
+            {% if poop_has_more %}
+              <a class="load-more-link" href="/?tab=history&amp;history_type=poop&amp;growth_limit={{ growth_limit }}&amp;milk_limit={{ milk_limit }}&amp;poop_limit={{ poop_limit + 10 }}">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 7 5 5 5-5M7 13l5 5 5-5"></path></svg>
+                <span>Load older records</span>
+              </a>
+            {% endif %}
+          {% else %}
+            <p class="empty-state">No poop records yet.</p>
+          {% endif %}
+        </section>
+      </section>
+
+      <section class="panel tab-panel {{ 'active' if active_tab == 'settings' else '' }}" id="settings-panel" {% if active_tab != 'settings' %}hidden{% endif %}>
+        <h2>Baby settings</h2>
+        {% if profile_error %}
+          <p class="error-message">{{ profile_error }}</p>
+        {% endif %}
+        <form action="/profile" method="post">
+          <label>
+            Baby name
+            <input type="text" name="name" value="{{ baby_profile.name if baby_profile else '' }}" autocomplete="off" required>
+          </label>
+
+          <label>
+            Sex for WHO standards
+            <select name="sex">
+              <option value="" {{ 'selected' if not baby_profile or not baby_profile.sex else '' }}>Not set</option>
+              <option value="female" {{ 'selected' if baby_profile and baby_profile.sex == 'female' else '' }}>Female</option>
+              <option value="male" {{ 'selected' if baby_profile and baby_profile.sex == 'male' else '' }}>Male</option>
+            </select>
+          </label>
+
+          <label class="date-field">
+            Born date and time
+            <input type="datetime-local" name="born_at" value="{{ profile_born_at_input }}">
+          </label>
+
+          <button type="submit">Save settings</button>
+        </form>
+      </section>
+    </main>
+    <script src="{{ url_for('static', path='/vendor/plotly-3.6.0.min.js') }}"></script>
+    <script>
+      const tabButtons = document.querySelectorAll("[data-tab-target]");
+      const tabPanels = document.querySelectorAll(".tab-panel");
+      const subtabButtons = document.querySelectorAll("[data-subtab-target]");
+      const modeInputs = document.querySelectorAll("input[name='entry_mode']");
+      const singleFields = document.querySelector(".single-entry-fields");
+      const fullFields = document.querySelector(".full-entry-fields");
+      const photoFields = document.querySelector(".photo-entry-fields");
+      const metricValue = document.querySelector("input[name='metric_value']");
+      const metricType = document.querySelector("select[name='metric_type']");
+      const photoInput = document.querySelector(".photo-entry-fields input[type='file']");
+      const growthCharts = {{ growth_charts_json|safe }};
+      const careCharts = {{ care_charts_json|safe }};
+      const journalRecordDates = new Set({{ journal_date_keys_json|safe }});
+      const journalInitialDate = "{{ journal_initial_date }}";
+      let selectedJournalDate = {{ journal_focus_date|tojson }};
+
+      tabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          tabButtons.forEach((item) => item.classList.remove("active"));
+          tabPanels.forEach((panel) => {
+            panel.classList.remove("active");
+            panel.hidden = true;
+          });
+
+          const panel = document.getElementById(button.dataset.tabTarget);
+          button.classList.add("active");
+          panel.classList.add("active");
+          panel.hidden = false;
+
+          const url = new URL(window.location.href);
+          url.searchParams.set("tab", panel.id.replace("-panel", ""));
+          window.history.replaceState({}, "", url);
+
+          if (panel.id === "dashboard-panel") {
+            ensureDashboardCharts();
+            ensureCareCharts();
+          }
+        });
+      });
+
+      subtabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const group = button.dataset.subtabGroup;
+          document.querySelectorAll(`[data-subtab-group='${group}']`).forEach((item) => {
+            item.classList.remove("active");
+            item.setAttribute("aria-selected", "false");
+          });
+          document.querySelectorAll(`[data-subtab-panel='${group}']`).forEach((panel) => {
+            panel.hidden = true;
+          });
+
+          const panel = document.getElementById(button.dataset.subtabTarget);
+          button.classList.add("active");
+          button.setAttribute("aria-selected", "true");
+          panel.hidden = false;
+
+          const url = new URL(window.location.href);
+          url.searchParams.set(button.dataset.subtabParam, button.dataset.subtabTarget.replace(`${group}-`, ""));
+          window.history.replaceState({}, "", url);
+
+          if (group === "dashboard") {
+            ensureDashboardCharts();
+            ensureCareCharts();
+          }
+        });
+      });
+
+      document.querySelectorAll("[data-edit-target]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const form = document.getElementById(button.dataset.editTarget);
+          const willOpen = form.hidden;
+          form.hidden = !willOpen;
+          button.setAttribute("aria-expanded", willOpen ? "true" : "false");
+          if (willOpen) {
+            form.querySelector("input, textarea, select")?.focus();
+          }
+        });
+      });
+
+      document.querySelectorAll("[data-cancel-edit]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const form = button.closest(".record-edit-form");
+          form.hidden = true;
+          const editButton = document.querySelector(`[data-edit-target='${form.id}']`);
+          editButton?.setAttribute("aria-expanded", "false");
+        });
+      });
+
+      document.querySelectorAll("[data-confirm-delete]").forEach((form) => {
+        form.addEventListener("submit", (event) => {
+          if (!window.confirm(`Delete this ${form.dataset.confirmDelete}? This cannot be undone.`)) {
+            event.preventDefault();
+          }
+        });
+      });
+
+      const journalLayout = document.querySelector(".journal-layout");
+      const journalCalendar = document.querySelector(".journal-calendar");
+      const calendarToggle = document.querySelector(".journal-calendar-toggle");
+      const calendarGrid = document.querySelector("[data-calendar-grid]");
+      const calendarTitle = document.querySelector("[data-calendar-title]");
+      const calendarPrevious = document.querySelector("[data-calendar-previous]");
+      const calendarNext = document.querySelector("[data-calendar-next]");
+      const initialCalendarDate = new Date(`${journalInitialDate}T00:00:00`);
+      let calendarMonth = new Date(initialCalendarDate.getFullYear(), initialCalendarDate.getMonth(), 1);
+
+      function localDateKey(year, month, day) {
+        return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
+
+      function calendarMonthIndex(value) {
+        return value.getFullYear() * 12 + value.getMonth();
+      }
+
+      function renderJournalCalendar() {
+        const year = calendarMonth.getFullYear();
+        const month = calendarMonth.getMonth();
+        const firstWeekday = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const todayKey = localDateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+        const recordMonths = [...journalRecordDates].map((value) => {
+          const recordDate = new Date(`${value}T00:00:00`);
+          return calendarMonthIndex(recordDate);
+        });
+        const currentMonthIndex = calendarMonthIndex(calendarMonth);
+        const minMonth = recordMonths.length ? Math.min(...recordMonths) : currentMonthIndex;
+        const maxMonth = recordMonths.length ? Math.max(...recordMonths) : currentMonthIndex;
+
+        calendarTitle.textContent = new Intl.DateTimeFormat("en", {
+          month: "long",
+          year: "numeric",
+        }).format(calendarMonth);
+        calendarGrid.replaceChildren();
+
+        for (let index = 0; index < 42; index += 1) {
+          const dayNumber = index - firstWeekday + 1;
+          if (dayNumber < 1 || dayNumber > daysInMonth) {
+            const blank = document.createElement("span");
+            blank.className = "journal-calendar-blank";
+            calendarGrid.append(blank);
+            continue;
+          }
+
+          const dateKey = localDateKey(year, month, dayNumber);
+          const dayElement = document.createElement(journalRecordDates.has(dateKey) ? "button" : "span");
+          dayElement.textContent = dayNumber;
+          dayElement.className = "journal-calendar-day";
+          if (dateKey === todayKey) dayElement.classList.add("is-today");
+          if (dateKey === selectedJournalDate) dayElement.classList.add("is-selected");
+
+          if (journalRecordDates.has(dateKey)) {
+            dayElement.type = "button";
+            dayElement.classList.add("has-records");
+            dayElement.setAttribute("aria-label", `Open Journal for ${dateKey}`);
+            dayElement.addEventListener("click", () => {
+              const loadedCard = document.querySelector(`[data-journal-date='${dateKey}']`);
+              selectedJournalDate = dateKey;
+              if (loadedCard) {
+                renderJournalCalendar();
+                loadedCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                const url = new URL(window.location.href);
+                url.searchParams.set("tab", "journal");
+                url.searchParams.set("journal_date", dateKey);
+                window.history.replaceState({}, "", url);
+              } else {
+                window.location.assign(`/?tab=journal&journal_date=${dateKey}`);
+              }
+            });
+          }
+          calendarGrid.append(dayElement);
+        }
+
+        calendarPrevious.disabled = currentMonthIndex <= minMonth;
+        calendarNext.disabled = currentMonthIndex >= maxMonth;
+      }
+
+      function setCalendarCollapsed(collapsed) {
+        journalCalendar.classList.toggle("is-collapsed", collapsed);
+        journalLayout.classList.toggle("calendar-collapsed", collapsed);
+        calendarToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        calendarToggle.setAttribute("aria-label", collapsed ? "Show calendar" : "Hide calendar");
+        calendarToggle.title = collapsed ? "Show calendar" : "Hide calendar";
+        try {
+          window.localStorage.setItem("babylog-journal-calendar-collapsed", collapsed ? "true" : "false");
+        } catch (error) {
+          // Calendar still works when Safari blocks local storage.
+        }
+      }
+
+      calendarPrevious.addEventListener("click", () => {
+        calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+        renderJournalCalendar();
+      });
+      calendarNext.addEventListener("click", () => {
+        calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+        renderJournalCalendar();
+      });
+      calendarToggle.addEventListener("click", () => {
+        setCalendarCollapsed(!journalCalendar.classList.contains("is-collapsed"));
+      });
+
+      let calendarStartsCollapsed = false;
+      try {
+        calendarStartsCollapsed = window.localStorage.getItem("babylog-journal-calendar-collapsed") === "true";
+      } catch (error) {
+        calendarStartsCollapsed = false;
+      }
+      setCalendarCollapsed(calendarStartsCollapsed);
+      renderJournalCalendar();
+
+      const journalSentinel = document.querySelector(".journal-sentinel");
+      const journalFeed = document.getElementById("journal-feed");
+      let journalObserver;
+
+      async function loadOlderJournalDays() {
+        if (!journalSentinel || journalSentinel.dataset.loading === "true") {
+          return;
+        }
+
+        journalSentinel.dataset.loading = "true";
+        try {
+          const response = await fetch(
+            `/journal/entries?before=${encodeURIComponent(journalSentinel.dataset.journalBefore)}`,
+            { headers: { "X-Requested-With": "BabyLog" } },
+          );
+          if (!response.ok) {
+            throw new Error("Journal request failed");
+          }
+
+          const template = document.createElement("template");
+          template.innerHTML = await response.text();
+          const loadedDays = template.content.querySelectorAll(".journal-day-card").length;
+          journalFeed.append(template.content);
+
+          const count = journalFeed.querySelectorAll(".journal-day-card").length;
+          document.querySelector("[data-journal-count]").textContent = `${count} ${count === 1 ? "day" : "days"}`;
+
+          if (response.headers.get("X-Journal-Has-More") === "true" && loadedDays > 0) {
+            journalSentinel.dataset.journalBefore = response.headers.get("X-Journal-Next-Before");
+            journalSentinel.dataset.loading = "false";
+          } else {
+            journalObserver?.disconnect();
+            journalSentinel.remove();
+          }
+        } catch (error) {
+          journalSentinel.dataset.loading = "false";
+          journalSentinel.querySelector("span:last-child").textContent = "Could not load older days";
+        }
+      }
+
+      if (journalSentinel && journalFeed) {
+        journalObserver = new IntersectionObserver((entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            loadOlderJournalDays();
+          }
+        }, { rootMargin: "600px 0px" });
+        journalObserver.observe(journalSentinel);
+      }
+
+      function updateMetricStep() {
+        metricValue.step = metricType.value === "weight_kg" ? "0.01" : "0.1";
+        metricValue.placeholder = metricType.value === "weight_kg" ? "kg" : "cm";
+      }
+
+      function updateEntryMode() {
+        const mode = document.querySelector("input[name='entry_mode']:checked").value;
+        const isSingle = mode === "single";
+        const isFull = mode === "full";
+        const isPhoto = mode === "photo";
+
+        singleFields.hidden = !isSingle;
+        fullFields.hidden = !isFull;
+        photoFields.hidden = !isPhoto;
+        metricValue.required = isSingle;
+        photoInput.required = isPhoto;
+      }
+
+      metricType.addEventListener("change", updateMetricStep);
+      modeInputs.forEach((input) => input.addEventListener("change", updateEntryMode));
+      updateMetricStep();
+      updateEntryMode();
+
+      photoInput.addEventListener("change", () => {
+        const preview = document.querySelector("[data-photo-preview]");
+        const file = photoInput.files[0];
+        if (!file) {
+          preview.hidden = true;
+          preview.removeAttribute("src");
+          return;
+        }
+        preview.src = URL.createObjectURL(file);
+        preview.hidden = false;
+      });
+
+      function traceForReferenceLine(line) {
+        return {
+          x: line.points.map((point) => point.measured_at),
+          y: line.points.map((point) => point.value),
+          name: line.label,
+          type: "scatter",
+          mode: "lines",
+          hovertemplate: `${line.label}<br>%{x|%Y-%m-%d}<br>%{y}<extra></extra>`,
+          line: {
+            color: line.key === "p50" ? "#5c6864" : "#98a19e",
+            width: line.key === "p50" ? 2 : 1.5,
+            dash: line.key === "p50" ? "solid" : "dash",
+          },
+        };
+      }
+
+      function traceForBabyPoints(chart) {
+        return {
+          x: chart.points.map((point) => point.measured_at),
+          y: chart.points.map((point) => point.value),
+          name: "Baby",
+          type: "scatter",
+          mode: chart.points.length === 1 ? "markers" : "lines+markers",
+          hovertemplate: `Baby<br>%{x|%Y-%m-%d %H:%M}<br>%{y:.${chart.decimals}f} ${chart.unit}<extra></extra>`,
+          line: {
+            color: "#2f7d69",
+            width: 3,
+          },
+          marker: {
+            color: "#ffffff",
+            line: {
+              color: "#205f50",
+              width: 2,
+            },
+            size: 8,
+          },
+        };
+      }
+
+      function drawChart(container, chart) {
+        const traces = [
+          ...chart.reference_lines.map(traceForReferenceLine),
+          traceForBabyPoints(chart),
+        ].filter((trace) => trace.x.length > 0);
+
+        const layout = {
+          autosize: true,
+          height: 260,
+          margin: { t: 8, r: 10, b: 44, l: 48 },
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "#fbfaf6",
+          showlegend: false,
+          dragmode: false,
+          xaxis: {
+            type: "date",
+            fixedrange: true,
+            tickfont: { color: "#667174", size: 11 },
+            gridcolor: "#dedbd1",
+            zeroline: false,
+          },
+          yaxis: {
+            title: { text: chart.unit, font: { color: "#667174", size: 11 } },
+            fixedrange: true,
+            tickfont: { color: "#667174", size: 11 },
+            gridcolor: "#dedbd1",
+            zeroline: false,
+          },
+        };
+
+        const config = {
+          displayModeBar: false,
+          responsive: true,
+          scrollZoom: false,
+        };
+
+        Plotly.newPlot(container, traces, layout, config);
+      }
+
+      function selectedCareScale(chart) {
+        const select = document.querySelector(`[data-care-scale='${chart.key}']`);
+        return select ? select.value : chart.default_scale;
+      }
+
+      function drawCareChart(container, chart) {
+        const scaleKey = selectedCareScale(chart);
+        const scale = chart.scales[scaleKey] || chart.scales[chart.default_scale];
+        const points = scale.points;
+        const isFeedingWindow = chart.key === "milk_ml" && scaleKey === "events";
+        container.classList.toggle("is-pannable", isFeedingWindow);
+        const hourMs = 60 * 60 * 1000;
+        let feedingRange;
+
+        if (isFeedingWindow && points.length > 0) {
+          const latestFeeding = Math.max(
+            ...points.map((point) => new Date(point.measured_at).getTime()),
+          );
+          const windowEnd = latestFeeding + 0.5 * hourMs;
+          feedingRange = [
+            new Date(windowEnd - 24 * hourMs).toISOString(),
+            new Date(windowEnd).toISOString(),
+          ];
+        }
+
+        const trace = {
+          x: points.map((point) => point.measured_at),
+          y: points.map((point) => point.value),
+          name: chart.label,
+          type: "bar",
+          width: isFeedingWindow ? 0.5 * hourMs : undefined,
+          marker: { color: chart.key === "milk_ml" ? "#2f7d69" : "#7c6f55" },
+          hovertemplate: `${chart.label}<br>%{x|${scale.hover_time_format}}<br>%{y:.${chart.decimals}f} ${chart.unit}<extra></extra>`,
+        };
+
+        const layout = {
+          autosize: true,
+          height: 260,
+          margin: { t: 8, r: 10, b: 44, l: 48 },
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "#fbfaf6",
+          showlegend: false,
+          dragmode: isFeedingWindow ? "pan" : false,
+          uirevision: `${chart.key}-${scaleKey}`,
+          bargap: scaleKey === "events" ? 0.25 : 0.18,
+          xaxis: {
+            type: "date",
+            fixedrange: !isFeedingWindow,
+            range: feedingRange,
+            tickformat: isFeedingWindow ? "%H:%M\n%b %d" : undefined,
+            tickfont: { color: "#667174", size: 11 },
+            gridcolor: "#dedbd1",
+            zeroline: false,
+          },
+          yaxis: {
+            title: { text: chart.unit, font: { color: "#667174", size: 11 } },
+            fixedrange: true,
+            rangemode: "tozero",
+            tickfont: { color: "#667174", size: 11 },
+            gridcolor: "#dedbd1",
+            zeroline: false,
+          },
+        };
+
+        Plotly.react(container, [trace], layout, {
+          displayModeBar: false,
+          responsive: true,
+          scrollZoom: false,
+          doubleClick: false,
+        });
+      }
+
+      function ensureDashboardCharts() {
+        document.querySelectorAll(".growth-chart").forEach((container) => {
+          const chart = growthCharts.find((item) => item.key === container.dataset.chartKey);
+          if (chart && container.dataset.plotlyReady !== "true") {
+            drawChart(container, chart);
+            container.dataset.plotlyReady = "true";
+          }
+          if (container.dataset.plotlyReady === "true") {
+            Plotly.Plots.resize(container);
+          }
+        });
+      }
+
+      function ensureCareCharts() {
+        document.querySelectorAll(".care-chart").forEach((container) => {
+          const chart = careCharts.find((item) => item.key === container.dataset.careKey);
+          if (chart) {
+            drawCareChart(container, chart);
+            container.dataset.plotlyReady = "true";
+          }
+        });
+      }
+
+      document.querySelectorAll("[data-care-scale]").forEach((select) => {
+        select.addEventListener("change", () => {
+          const container = document.querySelector(`.care-chart[data-care-key='${select.dataset.careScale}']`);
+          const chart = careCharts.find((item) => item.key === select.dataset.careScale);
+          if (container && chart) {
+            drawCareChart(container, chart);
+          }
+        });
+      });
+
+      if (document.getElementById("dashboard-panel").hidden === false) {
+        ensureDashboardCharts();
+        ensureCareCharts();
+      }
+    </script>
+  </body>
+</html>

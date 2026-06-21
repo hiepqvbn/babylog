@@ -1,0 +1,24 @@
+# Private BabyLog data
+babylog.db*
+static/uploads/*
+!static/uploads/README.md
+
+# Local Python environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration and logs
+.env
+.env.*
+*.log
+
+# macOS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

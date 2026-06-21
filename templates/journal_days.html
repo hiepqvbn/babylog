@@ -1,0 +1,38 @@
+{% for day in journal_days %}
+  <article class="journal-day-card" id="journal-day-{{ day.date }}" data-journal-date="{{ day.date }}">
+    <header class="journal-day-header">
+      <time datetime="{{ day.date }}">{{ day.date_label }}</time>
+      {% if day.age_label %}
+        <span>{{ day.age_label }} old</span>
+      {% endif %}
+    </header>
+
+    <div class="journal-day-content">
+      {% if day.photos %}
+        <div class="journal-photo-grid">
+          {% for photo in day.photos %}
+            <figure class="journal-photo-item">
+              <a class="journal-photo-link" href="{{ url_for('static', path='/uploads/' ~ photo.filename) }}" target="_blank" rel="noopener" aria-label="Open baby photo from {{ day.date_label }} at {{ photo.time_label }}">
+                <img class="journal-photo" src="{{ url_for('static', path='/uploads/' ~ photo.filename) }}" alt="Baby journal photo from {{ day.date_label }}" loading="lazy">
+              </a>
+              <figcaption>{{ photo.time_label }}</figcaption>
+            </figure>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <dl class="journal-metrics">
+        <div><dt>Weight</dt><dd>{{ "%.2f kg"|format(day.average_weight) if day.average_weight is not none else "-" }}</dd></div>
+        <div><dt>Height</dt><dd>{{ "%.1f cm"|format(day.average_height) if day.average_height is not none else "-" }}</dd></div>
+      </dl>
+
+      {% if day.notes %}
+        <div class="journal-notes">
+          {% for note in day.notes %}
+            <p class="journal-note"><time>{{ note.time_label }}</time>{{ note.text }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </article>
+{% endfor %}
